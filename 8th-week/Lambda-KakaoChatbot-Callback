@@ -1,0 +1,73 @@
+import json
+import boto3
+from botocore.exceptions import ClientError  # Add this import
+
+# AWS 설정 구성
+region = 'ap-northeast-2'
+session = boto3.Session(region_name=region)
+queue_url = 'Your SQS URL'
+
+def lambda_handler(event, context):
+    # 카카오톡 메세지 수신
+    request_body = json.loads(event['body'])
+    user_utterance = request_body['userRequest']['utterance']
+    callbackUrl = request_body['userRequest']['callbackUrl']
+    
+    sqs_response = send_message(queue_url, event['body'])
+    
+    try:
+        result = {
+            "version": "2.0",
+            "useCallback": True,
+            "data": {
+                "text": ""
+            }
+        }
+        
+        # TODO implement
+        return {
+            'statusCode': 200,
+            'body': json.dumps(result),
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+            }
+        }
+    
+    except Exception as error:
+        print(f'Lambda Error: {error}')
+        return {
+            'statusCode': 500,
+            'body': 'Internal Server Error',
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+            }
+        }
+        
+def send_message(queue_url, message_body, message_attributes=None):
+    """
+    Send a message to an Amazon SQS queue.
+
+    :param queue_url: The URL of the queue that receives the message.
+    :param message_body: The body text of the message.
+    :param message_attributes: Custom attributes of the message. These are key-value
+                               pairs that can be whatever you want.
+    :return: The response from SQS that contains the assigned message ID.
+    """
+    if not message_attributes:
+        message_attributes = {}
+
+    try:
+        sqs = boto3.client('sqs', region_name=region)
+        response = sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=message_body,
+            MessageAttributes=message_attributes
+        )
+
+    except ClientError as error:
+        print(f"Send message failed: {error}")
+        raise error
+    else:
+        return response
+
+
